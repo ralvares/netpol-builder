@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: netpol-builder
+spec:
+  destination:
+    namespace: frontend
+    server: https://kubernetes.default.svc
+  source:
+    path: charts/netpol-builder
+    repoURL: https://github.com/ralvares/netpol-builder
+    targetRevision: HEAD
+    helm:
+      releaseName: netpol-builder
+      valueFiles:
+        - ../../values.yaml
+  sources: []
+  project: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

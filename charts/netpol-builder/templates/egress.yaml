@@ -1,0 +1,53 @@
+{{- $root := . -}}
+{{- $ns := .Values.namespace -}}
+
+{{- range .Values.rules }}
+{{- $r := . -}}
+
+{{- if $r.dst.fqdn }}
+  {{- /* skip FQDN rules, handled by EgressFirewall */ -}}
+{{- else }}
+  {{- $src := $r.src | default (dict "any" true) }}
+  {{- if or $src.workload $src.any }}
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "netpol.egressName" (dict "rule" $r "ns" $ns) }}
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+{{- if $src.workload }}
+{{- include "netpol.workloadSelector" (dict "root" $root "token" $src.workload) | nindent 4 }}
+{{- else }}
+    {}
+{{- end }}
+  policyTypes:
+    - Egress
+  egress:
+{{- if $r.dst.any }}
+    - {}
+{{- else }}
+    - to:
+        {{- if $r.dst.cidr }}
+        - ipBlock:
+            cidr: {{ $r.dst.cidr }}
+        {{- else if and $r.dst.namespace $r.dst.workload }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $r.dst.namespace }}
+          podSelector:
+{{- include "netpol.workloadSelector" (dict "root" $root "token" $r.dst.workload) | nindent 12 }}
+        {{- else if $r.dst.workload }}
+        - podSelector:
+{{- include "netpol.workloadSelector" (dict "root" $root "token" $r.dst.workload) | nindent 12 }}
+        {{- end }}
+{{- if and $r.dst.service (ne $r.dst.service "any") }}
+      ports:
+{{- include "netpol.parsePortBlock" $r.dst.service | nindent 8 }}
+{{- end }}
+{{- end }}
+---
+  {{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,29 @@
+{{- $fqdnRules := list }}
+{{- range .Values.rules }}
+  {{- if .dst.fqdn }}
+    {{- $fqdnRules = append $fqdnRules . }}
+  {{- end }}
+{{- end }}
+{{- if gt (len $fqdnRules) 0 }}
+apiVersion: k8s.ovn.org/v1
+kind: EgressFirewall
+metadata:
+  name: default
+  namespace: {{ .Values.namespace }}
+spec:
+  egress:
+{{- range $fqdnRules }}
+    - type: Allow
+      to:
+        dnsName: {{ .dst.fqdn | quote }}
+{{- if .dst.service }}
+{{- $svc := .dst.service | toString }}
+{{- $parts := splitList "/" $svc }}
+{{- if eq (len $parts) 2 }}
+      ports:
+        - protocol: {{ upper (index $parts 1) }}
+          port: {{ index $parts 0 | int }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

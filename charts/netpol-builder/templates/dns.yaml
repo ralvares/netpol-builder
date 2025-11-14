@@ -1,0 +1,67 @@
+{{/*
+===============================================================================
+ DNS ALLOW POLICY — merged matchExpressions for workloads needing DNS
+===============================================================================
+*/}}
+
+{{- $ns := .Values.namespace -}}
+{{- $affected := dict -}}
+
+{{/* Identify workloads needing DNS */}}
+{{- range .Values.rules }}
+  {{- $src := (get (get . "src" | default dict) "workload") | default nil -}}
+  {{- $dst := .dst -}}
+  {{- if and $src (not $dst.cidr) }}
+    {{- $_ := set $affected $src true -}}
+  {{- end }}
+{{- end }}
+
+{{- if gt (len $affected) 0 }}
+
+{{/* Build key -> list of values */}}
+{{- $merged := dict -}}
+
+{{- range $wl, $_ := $affected }}
+  {{- $sel := include "netpol.getSelectorForWorkload" (dict "root" $ "token" $wl) | fromYaml }}
+
+  {{- range $k, $v := $sel }}
+    {{- $existing := index $merged $k | default (list) }}
+    {{- if not (has $v $existing) }}
+      {{- $_ := set $merged $k (append $existing $v) }}
+    {{- end }}
+  {{- end }}
+{{- end }}
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+    matchExpressions:
+      {{- range $k, $vals := $merged }}
+      - key: {{ $k }}
+        operator: In
+        values:
+          {{- range $vals }}
+          - {{ . }}
+          {{- end }}
+      {{- end }}
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+        - port: 5353
+          protocol: UDP
+        - port: 5353
+          protocol: TCP
+{{- end }}

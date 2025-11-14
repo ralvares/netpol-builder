@@ -1,0 +1,24 @@
+# -----------------------------------
+# netpol-builder default base values
+# -----------------------------------
+
+# REQUIRED for every namespace overlay,
+# but left empty here. The user layer must set it.
+namespace: ""
+
+# Built-in features required for workloads to operate.
+# These apply to ALL namespaces by default.
+features:
+  ingress: true        # allow router ingress (Routes)
+  monitoring: false    # allow Prometheus scraping (off by default)
+
+# No application rules by default.
+# Namespace overlays define these.
+rules: []
+
+# Selector configuration
+# Allows changing the workload label key used to match pods.
+# Example: set to "app.kubernetes.io/name" if you follow Kubernetes recommended labels.
+selectors:
+  default:
+    key: app

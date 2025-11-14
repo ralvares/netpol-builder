@@ -1,0 +1,50 @@
+{{- $root := . -}}
+{{- $ns := .Values.namespace -}}
+
+{{- range .Values.rules }}
+{{- $r := . -}}
+
+{{- if and $r.dst.workload (not $r.dst.namespace) }}
+
+{{- /* Determine if this rule actually has a valid source */ -}}
+{{- $hasSrc := false -}}
+{{- if $r.src.any -}}{{- $hasSrc = true -}}{{- end -}}
+{{- if $r.src.workload -}}{{- $hasSrc = true -}}{{- end -}}
+{{- if and $r.src.namespace $r.src.workload -}}{{- $hasSrc = true -}}{{- end -}}
+{{- if not $hasSrc }}
+{{- continue }}     {{/* SKIP invalid ingress rules */}}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "netpol.ingressName" (dict "rule" $r "ns" $ns) }}
+  namespace: {{ $ns }}
+spec:
+  podSelector:
+{{ include "netpol.workloadSelector" (dict "root" $root "token" $r.dst.workload) | indent 4 }}
+  policyTypes:
+    - Ingress
+  ingress:
+{{- if $r.src.any }}
+    - ports:
+{{ include "netpol.parsePortBlock" $r.dst.service | indent 6 }}
+{{- else }}
+    - from:
+{{- if and $r.src.namespace $r.src.workload }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $r.src.namespace }}
+          podSelector:
+{{ include "netpol.workloadSelector" (dict "root" $root "token" $r.src.workload) | indent 12 }}
+{{- else if $r.src.workload }}
+        - podSelector:
+{{ include "netpol.workloadSelector" (dict "root" $root "token" $r.src.workload) | indent 12 }}
+{{- end }}
+{{- if and $r.dst.service (ne $r.dst.service "any") }}
+      ports:
+{{ include "netpol.parsePortBlock" $r.dst.service | indent 8 }}
+{{- end }}
+{{- end }}
+---
+{{- end }}  {{/* end-if for valid ingress rule */}}
+{{- end }}  {{/* end range */}}

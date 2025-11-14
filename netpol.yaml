@@ -1,0 +1,258 @@
+---
+# Source: netpol-builder/templates/deny-all.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: frontend
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress", "Egress"]
+---
+# Source: netpol-builder/templates/dns.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: frontend
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - webapp
+      - key: demo
+        operator: In
+        values:
+          - label
+  policyTypes: ["Egress"]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: openshift-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+        - port: 5353
+          protocol: UDP
+        - port: 5353
+          protocol: TCP
+---
+# Source: netpol-builder/templates/egress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-egress-from-checkout-to-frontend-gateway-8080-tcp
+  namespace: frontend
+spec:
+  podSelector:
+    matchLabels:
+      demo: "label"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: "gateway"
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+# Source: netpol-builder/templates/egress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-egress-from-checkout-to-payments-gateway-8080-tcp
+  namespace: frontend
+spec:
+  podSelector:
+    matchLabels:
+      demo: "label"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: payments
+          podSelector:
+            matchLabels:
+              app: "gateway"
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+# Source: netpol-builder/templates/egress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-egress-from-webapp-to-frontend-checkout-8080-tcp
+  namespace: frontend
+spec:
+  podSelector:
+    matchLabels:
+      app: "webapp"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              demo: "label"
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+# Source: netpol-builder/templates/egress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-egress-from-reports-to-cidr-10-20-30-0-24
+  namespace: frontend
+spec:
+  podSelector:
+    matchLabels:
+      app: "reports"
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.20.30.0/24
+---
+# Source: netpol-builder/templates/egress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-egress-from-any-to-cidr-10-20-30-0-24
+  namespace: frontend
+spec:
+  podSelector:
+    {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.20.30.0/24
+---
+# Source: netpol-builder/templates/egress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-egress-from-any-to-payments-gateway-8443-tcp
+  namespace: frontend
+spec:
+  podSelector:
+    {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: payments
+          podSelector:
+            matchLabels:
+              app: "gateway"
+      ports:
+        - port: 8443
+          protocol: TCP
+---
+# Source: netpol-builder/templates/egress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-egress-from-webapp-to-any
+  namespace: frontend
+spec:
+  podSelector:
+    matchLabels:
+      app: "webapp"
+  policyTypes:
+    - Egress
+  egress:
+    - {}
+---
+# Source: netpol-builder/templates/features.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-router
+  namespace: frontend
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              network.openshift.io/policy-group: ingress
+---
+# Source: netpol-builder/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-ingress-to-gateway-from-frontend-checkout-8080-tcp
+  namespace: frontend
+spec:
+  podSelector:
+    matchLabels:
+      app: "gateway"
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              demo: "label"
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+# Source: netpol-builder/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: np-ingress-to-checkout-from-frontend-webapp-8080-tcp
+  namespace: frontend
+spec:
+  podSelector:
+    matchLabels:
+      demo: "label"
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: "webapp"
+      ports:
+        - port: 8080
+          protocol: TCP
+---
+# Source: netpol-builder/templates/egress-firewall.yaml
+apiVersion: k8s.ovn.org/v1
+kind: EgressFirewall
+metadata:
+  name: default
+  namespace: frontend
+spec:
+  egress:
+    - type: Allow
+      to:
+        dnsName: "www.google.com"
+      ports:
+        - protocol: TCP
+          port: 443
+    - type: Allow
+      to:
+        dnsName: "db.google.com"
+      ports:
+        - protocol: TCP
+          port: 443

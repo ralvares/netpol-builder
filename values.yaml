@@ -1,0 +1,139 @@
+# ------------------------------------------------------------------------------
+# Namespace this file applies to
+# ------------------------------------------------------------------------------
+namespace: frontend
+
+# ------------------------------------------------------------------------------
+# Feature toggles interpreted by the generator/operator
+# ------------------------------------------------------------------------------
+features:
+  ingress: true          # Allow external ingress/Route exposure?
+  monitoring: false        # Enable metrics scrapes / net-observ integration?
+
+# ------------------------------------------------------------------------------
+# Selector mapping (optional)
+# Maps friendly names → Kubernetes label selectors for workloads
+# ------------------------------------------------------------------------------
+selectors:
+  checkout:
+    matchLabels:
+      demo: label
+
+  # Example:
+  # checkout:
+  #   matchLabels:
+  #     app: checkout
+
+# ------------------------------------------------------------------------------
+# Firewall-style traffic rules
+# ------------------------------------------------------------------------------
+rules:
+
+
+  # --------------------------------------------------------------------------
+  # SERVICE → SERVICE traffic - same namespace - EGRESS and INGRESS
+  # --------------------------------------------------------------------------
+  - id: checkout-to-gateway-8080
+    src:
+      workload: checkout
+    dst:
+      workload: gateway
+      service: 8080/tcp
+
+  # --------------------------------------------------------------------------
+  # SERVICE → SERVICE traffic from different namespaces - EGRESS
+  # --------------------------------------------------------------------------
+  - id: checkout-to-gateway-8080
+    src:
+      workload: checkout
+    dst:
+      namespace: payments
+      workload: gateway
+      service: 8080/tcp
+
+
+  # --------------------------------------------------------------------------
+  # SERVICE → SERVICE traffic from external namespaces - INGRESS
+  # --------------------------------------------------------------------------
+  - id: checkout-to-gateway-8080
+    src:
+      workload: webapp
+    dst:
+      workload: checkout
+      service: 8080/tcp
+
+
+  # Example additional rules:
+  #
+  # - id: reports-to-recommendation-8080
+  #   src:
+  #     namespace: backend
+  #     workload: reports
+  #   dst:
+  #     namespace: backend
+  #     workload: recommendation
+  #   service: 8080/tcp
+  #   description: "reports → recommendation"
+
+  # --------------------------------------------------------------------------
+  # FQDN egress (optional)
+  # --------------------------------------------------------------------------
+  # - id: webapp-to-google-443
+  #   src:
+  #     namespace: frontend
+  #     workload: webapp
+  #   dst:
+  #     fqdn: www.google.com
+  #   service: 443/tcp
+  #   description: "webapp → google.com"
+
+  # --------------------------------------------------------------------------
+  # CIDR egress (optional) - EXGRESS
+  # --------------------------------------------------------------------------
+  - id: reports-to-subnet
+    src:
+       workload: reports
+    dst:
+      cidr: 10.20.30.0/24
+      service: any
+
+  # --------------------------------------------------------------------------
+  # Any-source flows (optional) - EGRESS
+  # --------------------------------------------------------------------------
+  - id: any-to-subnet
+    src:
+       any: true
+    dst:
+      cidr: 10.20.30.0/24
+      service: any
+
+  # --------------------------------------------------------------------------
+  # Any-source flows (optional) - EGRESS TO PAYMENTS GATEWAY port 8443/tcp
+  # --------------------------------------------------------------------------
+  - id: any-to-to-gateway
+    src:
+      any: true
+    dst:
+      namespace: payments
+      workload: gateway
+      service: 8443/tcp
+
+  # --------------------------------------------------------------------------
+  # Any-destination flows (optional) - INGRESS FROM PAYMENTS GATEWAY port 8443/tcp
+  # --------------------------------------------------------------------------
+  #- id: egress-webapp-to-any
+  #  src:
+  #    workload: webapp
+  #    service: 8443/tcp
+  #  dst:
+  #    any: true
+
+  - id: egress-to-www-google.com
+    dst:
+      fqdn: www.google.com
+      service: 443/tcp
+
+  - id: egress-to-db-google.com
+    dst:
+      fqdn: db.google.com
+      service: 443/tcp
