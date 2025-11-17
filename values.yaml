@@ -128,12 +128,12 @@ rules:
   #  dst:
   #    any: true
 
-  - id: egress-to-www-google.com
-    dst:
-      fqdn: www.google.com
-      service: 443/tcp
+  #- id: egress-to-www-google.com
+  #  dst:
+  #    fqdn: www.google.com
+  #    service: 443/tcp
 
-  - id: egress-to-db-google.com
-    dst:
-      fqdn: db.google.com
-      service: 443/tcp
+  #- id: egress-to-db-google.com
+  #  dst:
+  #    fqdn: db.google.com
+  #    service: 443/tcp

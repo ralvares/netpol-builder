@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Netpol Builder</title>
+  <style>
+    body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; }
+    #left { width: 50%; padding: 20px; overflow-y: auto; border-right: 2px solid #ddd; }
+    #right { width: 50%; padding: 20px; overflow-y: auto; background: #fafafa; }
+    .rule-box { border: 1px solid #ccc; padding: 12px; margin-bottom: 20px; border-radius: 6px; }
+    .field { margin: 6px 0; }
+    textarea { width: 100%; height: 80px; }
+    pre { background: #eee; padding: 12px; white-space: pre-wrap; }
+    button { margin: 4px 0; padding: 4px 8px; cursor: pointer; }
+
+    .icon { cursor:pointer; margin-left: 6px; }
+    .icon:hover { color:red; }
+
+    /* Modal */
+    #modalOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #modalBox {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      width: 300px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.3);
+    }
+    #modalBox select, #modalBox input {
+      width: 100%;
+      margin: 8px 0;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ====================== LEFT PANEL ========================== -->
+<div id="left">
+  <h2>Netpol Builder (MVP)</h2>
+
+  <!-- Namespace -->
+  <div class="field">
+    <label>Namespace:</label><br>
+    <input id="namespace" value="change_me" oninput="renderYAML()" />
+  </div>
+
+  <!-- Features -->
+  <div class="field">
+    <label>ingress:</label>
+    <select id="feature-ingress" onchange="renderYAML()">
+      <option>true</option>
+      <option>false</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>monitoring:</label>
+    <select id="feature-monitoring" onchange="renderYAML()">
+      <option>false</option>
+      <option>true</option>
+    </select>
+  </div>
+
+  <hr>
+
+  <h3>Rules</h3>
+  <button onclick="addRule()">+ Add Rule</button>
+
+  <div id="rules"></div>
+</div>
+
+<!-- ====================== RIGHT PANEL ========================== -->
+<div id="right">
+  <h2>Generated YAML</h2>
+  <pre id="yaml"></pre>
+</div>
+
+<!-- ====================== MODAL POP FORM ========================== -->
+<div id="modalOverlay">
+  <div id="modalBox">
+    <h3 id="modalTitle">Add Field</h3>
+
+    <label>Field Type:</label>
+    <select id="modalFieldType"></select>
+
+    <div id="modalValueArea">
+      <label>Value:</label>
+      <input id="modalFieldValue" />
+    </div>
+
+    <button onclick="modalSubmit()">Save</button>
+    <button onclick="closeModal()">Cancel</button>
+  </div>
+</div>
+
+<script>
+let ruleCounter = 0;
+const rules = [];
+
+let modalTarget = null;
+let modalSection = null;
+let modalEditingKey = null;
+
+// ----------------------- MODAL -------------------------
+
+function openModal(ruleId, section, options, editKey=null) {
+  modalTarget = ruleId;
+  modalSection = section;
+  modalEditingKey = editKey;
+
+  const select = document.getElementById("modalFieldType");
+  select.innerHTML = "";
+
+  options.forEach(o => {
+    const op = document.createElement("option");
+    op.value = o;
+    op.textContent = o;
+    select.appendChild(op);
+  });
+
+  const valueBox = document.getElementById("modalValueArea");
+  const valueInput = document.getElementById("modalFieldValue");
+
+  if (editKey) {
+    document.getElementById("modalTitle").textContent = "Edit Field";
+    select.value = editKey;
+
+    const rule = rules.find(r => r.id === ruleId);
+
+    if (editKey === "any") {
+      valueBox.style.display = "none";
+    } else {
+      valueBox.style.display = "block";
+      valueInput.value = rule[section][editKey];
+    }
+  } else {
+    document.getElementById("modalTitle").textContent = "Add Field";
+    valueInput.value = "";
+    valueBox.style.display = "block";
+  }
+
+  select.onchange = () => {
+    if (select.value === "any") valueBox.style.display = "none";
+    else valueBox.style.display = "block";
+  };
+
+  document.getElementById("modalOverlay").style.display = "flex";
+}
+
+function closeModal() {
+  modalTarget = null;
+  modalSection = null;
+  modalEditingKey = null;
+  document.getElementById("modalOverlay").style.display = "none";
+}
+
+function modalSubmit() {
+  const type = document.getElementById("modalFieldType").value;
+  const val = document.getElementById("modalFieldValue").value;
+
+  const rule = rules.find(r => r.id === modalTarget);
+  if (!rule) return;
+
+  // EDIT MODE
+  if (modalEditingKey) {
+    delete rule[modalSection][modalEditingKey];
+
+    if (type === "any") {
+      rule[modalSection] = { any: true };
+    } else {
+      rule[modalSection][type] = val;
+    }
+    closeModal();
+    renderRules();
+    renderYAML();
+    return;
+  }
+
+  // ADD MODE
+  if (type === "any") {
+    rule[modalSection] = { any: true };
+  } else {
+    rule[modalSection][type] = val;
+  }
+
+  closeModal();
+  renderRules();
+  renderYAML();
+}
+
+// ------------------------ RULE MGMT ----------------------
+
+function addRule() {
+  const id = ruleCounter++;
+  rules.push({ id, src: {}, dst: {}, service: "", description: "" });
+  renderRules();
+  renderYAML();
+}
+
+function removeRule(id) {
+  const idx = rules.findIndex(r => r.id === id);
+  if (idx >= 0) rules.splice(idx, 1);
+  renderRules();
+  renderYAML();
+}
+
+function removeField(ruleId, section, key) {
+  const rule = rules.find(r => r.id === ruleId);
+  if (!rule) return;
+  delete rule[section][key];
+  renderRules();
+  renderYAML();
+}
+
+function openSrcAddForm(ruleId) {
+  openModal(ruleId, "src", ["workload", "namespace", "any"]);
+}
+
+function openDstAddForm(ruleId) {
+  openModal(ruleId, "dst", ["workload", "namespace", "fqdn", "cidr", "any"]);
+}
+
+function editField(ruleId, section, key) {
+  const opts = (section === "src")
+    ? ["workload", "namespace", "any"]
+    : ["workload", "namespace", "fqdn", "cidr", "any"];
+
+  openModal(ruleId, section, opts, key);
+}
+
+function updateRuleField(id, section, key, value) {
+  const rule = rules.find(r => r.id === id);
+  if (!rule) return;
+  if (!value) delete rule[section][key];
+  else rule[section][key] = value;
+  renderYAML();
+}
+
+function updateRuleMeta(id, key, value) {
+  const rule = rules.find(r => r.id === id);
+  rule[key] = value;
+  renderYAML();
+}
+
+// ------------------ ID GENERATION -----------------------
+
+function normalize(str) {
+  return (str || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+}
+
+function generateId(rule) {
+  let src = "any";
+  if (rule.src.workload) src = rule.src.workload;
+  else if (rule.src.namespace && rule.src.workload)
+    src = rule.src.namespace + "-" + rule.src.workload;
+
+  let dst = "any";
+  if (rule.dst.workload) dst = rule.dst.workload;
+  else if (rule.dst.namespace && rule.dst.workload)
+    dst = rule.dst.namespace + "-" + rule.dst.workload;
+  else if (rule.dst.fqdn) dst = rule.dst.fqdn;
+  else if (rule.dst.cidr) dst = rule.dst.cidr;
+
+  const svc = rule.service ? normalize(rule.service) : "";
+  return normalize(src) + "-to-" + normalize(dst) + (svc ? "-" + svc : "");
+}
+
+// ----------------------- RENDERING -----------------------
+
+function renderRules() {
+  const container = document.getElementById("rules");
+  container.innerHTML = "";
+
+  rules.forEach(rule => {
+    const div = document.createElement("div");
+    div.className = "rule-box";
+
+    const autoId = generateId(rule);
+
+    const srcFields = Object.entries(rule.src).map(([k,v]) => {
+      if (k === "any")
+        return `any: true 
+          <span class="icon" onclick="editField(${rule.id}, 'src', '${k}')">✏️</span>
+          <span class="icon" onclick="removeField(${rule.id}, 'src', '${k}')">✖</span><br>`;
+
+      return `${k}: <input value="${v}" oninput="updateRuleField(${rule.id}, 'src', '${k}', this.value)" />
+        <span class="icon" onclick="editField(${rule.id}, 'src', '${k}')">✏️</span>
+        <span class="icon" onclick="removeField(${rule.id}, 'src', '${k}')">✖</span><br>`;
+    }).join("");
+
+    const dstFields = Object.entries(rule.dst).map(([k,v]) => {
+      if (k === "any")
+        return `any: true 
+          <span class="icon" onclick="editField(${rule.id}, 'dst', '${k}')">✏️</span>
+          <span class="icon" onclick="removeField(${rule.id}, 'dst', '${k}')">✖</span><br>`;
+
+      return `${k}: <input value="${v}" oninput="updateRuleField(${rule.id}, 'dst', '${k}', this.value)" />
+        <span class="icon" onclick="editField(${rule.id}, 'dst', '${k}')">✏️</span>
+        <span class="icon" onclick="removeField(${rule.id}, 'dst', '${k}')">✖</span><br>`;
+    }).join("");
+
+    div.innerHTML = `
+      <b>ID (auto):</b> ${autoId}<br><br>
+
+      <b>SOURCE:</b><br>
+      ${srcFields}
+      <button onclick="openSrcAddForm(${rule.id})">+ Add SRC Field</button>
+
+      <br><br>
+
+      <b>DESTINATION:</b><br>
+      ${dstFields}
+      <button onclick="openDstAddForm(${rule.id})">+ Add DST Field</button>
+
+      <br><br>
+
+      Service:<br>
+      <input value="${rule.service}" oninput="updateRuleMeta(${rule.id}, 'service', this.value)" /><br><br>
+
+      Description:<br>
+      <textarea oninput="updateRuleMeta(${rule.id}, 'description', this.value)">${rule.description}</textarea><br>
+
+      <button onclick="removeRule(${rule.id})">Remove Rule</button>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+function renderYAML() {
+  const ns = document.getElementById("namespace").value;
+  const ingress = document.getElementById("feature-ingress").value === "true";
+  const monitoring = document.getElementById("feature-monitoring").value === "true";
+
+  const yamlObj = {
+    namespace: ns,
+    features: { ingress, monitoring },
+    rules: rules.map(r => {
+      const autoId = generateId(r);
+      const rule = {
+        id: autoId,
+        src: r.src,
+        dst: r.dst
+      };
+      if (r.service) rule.service = r.service;
+      if (r.description) rule.description = r.description;
+      return rule;
+    })
+  };
+
+  document.getElementById("yaml").textContent = yamlDump(yamlObj);
+}
+
+function yamlDump(obj, indent = 0) {
+  const pad = "  ".repeat(indent);
+  if (obj === null) return "null";
+  if (typeof obj !== "object") return obj.toString();
+
+  if (Array.isArray(obj)) {
+    return obj.map(i => pad + "- " + yamlDump(i, indent+1)).join("\n");
+  }
+
+  return Object.entries(obj)
+    .map(([k,v]) =>
+      pad + k + ": " +
+      (typeof v === "object"
+        ? "\n" + yamlDump(v, indent+1)
+        : v)
+    ).join("\n");
+}
+
+renderYAML();
+</script>
+
+</body>
+</html>
