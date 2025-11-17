@@ -43,7 +43,7 @@
 
 <!-- ====================== LEFT PANEL ========================== -->
 <div id="left">
-  <h2>Netpol Builder (MVP)</h2>
+  <h2>Netpol Builder</h2>
 
   <!-- Namespace -->
   <div class="field">
@@ -348,13 +348,18 @@ function renderYAML() {
     features: { ingress, monitoring },
     rules: rules.map(r => {
       const autoId = generateId(r);
+
       const rule = {
         id: autoId,
         src: r.src,
-        dst: r.dst
+        dst: { ...r.dst }   // clone dst first
       };
-      if (r.service) rule.service = r.service;
+
+      // FIX: service belongs inside dst
+      if (r.service) rule.dst.service = r.service;
+
       if (r.description) rule.description = r.description;
+
       return rule;
     })
   };
