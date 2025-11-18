@@ -4,45 +4,187 @@
   <meta charset="UTF-8">
   <title>Netpol Builder</title>
   <style>
-    body { font-family: sans-serif; display: flex; height: 100vh; margin: 0; }
-    #left { width: 50%; padding: 20px; overflow-y: auto; border-right: 2px solid #ddd; }
-    #right { width: 50%; padding: 20px; overflow-y: auto; background: #fafafa; }
-    .rule-box { border: 1px solid #ccc; padding: 12px; margin-bottom: 20px; border-radius: 6px; }
-    .field { margin: 6px 0; }
-    textarea { width: 100%; height: 80px; }
-    pre { background: #eee; padding: 12px; white-space: pre-wrap; }
-    button { margin: 4px 0; padding: 4px 8px; cursor: pointer; }
+    * {
+      box-sizing: border-box;
+    }
 
-    .icon { cursor:pointer; margin-left: 6px; }
-    .icon:hover { color:red; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #f3f4f6;
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    #left,
+    #right {
+      flex: 1 1 0;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    #left {
+      background: #ffffff;
+      border-right: 1px solid #e5e7eb;
+    }
+
+    #right {
+      background: #f9fafb;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 1.4rem;
+    }
+
+    h3 {
+      margin-top: 24px;
+      font-size: 1.1rem;
+    }
+
+    .field {
+      margin: 10px 0;
+    }
+
+    .field label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+      font-size: 0.9rem;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+      font-family: inherit;
+      font-size: 0.9rem;
+      resize: vertical;
+    }
+
+    pre#yaml {
+      background: #111827;
+      color: #e5e7eb;
+      padding: 12px;
+      white-space: pre-wrap;
+      border-radius: 6px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.85rem;
+    }
+
+    button {
+      margin: 4px 0;
+      padding: 6px 10px;
+      cursor: pointer;
+      border-radius: 4px;
+      border: 1px solid #2563eb;
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 0.85rem;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .btn-danger {
+      border-color: #dc2626;
+      background: #dc2626;
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    .rule-box {
+      border: 1px solid #e5e7eb;
+      padding: 12px;
+      margin-bottom: 16px;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+
+    .icon {
+      cursor: pointer;
+      margin-left: 6px;
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+
+    .icon:hover {
+      color: #dc2626;
+    }
 
     /* Modal */
     #modalOverlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(3px);
       display: none;
       align-items: center;
       justify-content: center;
+      z-index: 50;
     }
+
     #modalBox {
-      background: white;
+      background: #ffffff;
       padding: 20px;
-      border-radius: 8px;
-      width: 300px;
-      box-shadow: 0 0 12px rgba(0,0,0,0.3);
+      border-radius: 10px;
+      width: 320px;
+      box-shadow: 0 10px 40px rgba(15, 23, 42, 0.45);
     }
-    #modalBox select, #modalBox input {
+
+    #modalBox h3 {
+      margin-top: 0;
+      margin-bottom: 12px;
+    }
+
+    #modalBox select,
+    #modalBox input {
       width: 100%;
       margin: 8px 0;
+      padding: 6px 8px;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+      font-size: 0.9rem;
+    }
+
+    #modalBox button {
+      margin-right: 8px;
     }
   </style>
 </head>
 
 <body>
 
-<!-- ====================== LEFT PANEL ========================== -->
-<div id="left">
+<!-- ====================== MAIN APP LAYOUT ========================== -->
+<div class="app">
+
+  <!-- ====================== LEFT PANEL ========================== -->
+  <div id="left">
   <h2>Netpol Builder</h2>
 
   <!-- Namespace -->
@@ -74,12 +216,14 @@
   <button onclick="addRule()">+ Add Rule</button>
 
   <div id="rules"></div>
-</div>
+  </div>
 
-<!-- ====================== RIGHT PANEL ========================== -->
-<div id="right">
-  <h2>Generated YAML</h2>
-  <pre id="yaml"></pre>
+  <!-- ====================== RIGHT PANEL ========================== -->
+  <div id="right">
+    <h2>Generated YAML</h2>
+    <pre id="yaml"></pre>
+  </div>
+
 </div>
 
 <!-- ====================== MODAL POP FORM ========================== -->
@@ -249,6 +393,65 @@ function updateRuleMeta(id, key, value) {
   renderYAML();
 }
 
+// ---------------------- VALIDATION RULES ----------------------
+
+function validateRule(rule) {
+  const errors = [];
+
+  const src = rule.src || {};
+  const dst = rule.dst || {};
+
+  const srcAny = !!src.any;
+  const srcWorkload = !!src.workload;
+  const srcNamespace = !!src.namespace;
+
+  if (srcAny && (srcWorkload || srcNamespace)) {
+    errors.push("src: cannot combine 'any' with 'namespace' or 'workload'.");
+  }
+
+  if (srcNamespace && !srcWorkload) {
+    errors.push("src: 'namespace' requires 'workload'.");
+  }
+
+  if (!srcAny && !srcWorkload && !srcNamespace) {
+    errors.push("src: must set either 'any' or 'workload' (optionally with namespace).");
+  }
+
+  const dstAny = !!dst.any;
+  const dstWorkload = !!dst.workload;
+  const dstNamespace = !!dst.namespace;
+  const dstFqdn = !!dst.fqdn;
+  const dstCidr = !!dst.cidr;
+
+  const modeCount = [dstAny, dstWorkload, dstFqdn, dstCidr].filter(Boolean).length;
+
+  if (modeCount === 0) {
+    errors.push("dst: must set one of 'any', 'workload', 'fqdn', or 'cidr'.");
+  }
+
+  if (modeCount > 1) {
+    errors.push("dst: choose only one of 'any', 'workload', 'fqdn', or 'cidr'.");
+  }
+
+  if (dstAny && (dstWorkload || dstNamespace || dstFqdn || dstCidr)) {
+    errors.push("dst: 'any' cannot be combined with other fields.");
+  }
+
+  if (dstFqdn && (dstAny || dstWorkload || dstNamespace || dstCidr)) {
+    errors.push("dst: 'fqdn' cannot be combined with 'any', 'workload', 'namespace', or 'cidr'.");
+  }
+
+  if (dstCidr && (dstAny || dstWorkload || dstNamespace || dstFqdn)) {
+    errors.push("dst: 'cidr' cannot be combined with 'any', 'workload', 'namespace', or 'fqdn'.");
+  }
+
+  if (dstNamespace && !dstWorkload) {
+    errors.push("dst: 'namespace' requires 'workload'.");
+  }
+
+  return errors;
+}
+
 // ------------------ ID GENERATION -----------------------
 
 function normalize(str) {
@@ -287,6 +490,7 @@ function renderRules() {
     div.className = "rule-box";
 
     const autoId = generateId(rule);
+    const errors = validateRule(rule);
 
     const srcFields = Object.entries(rule.src).map(([k,v]) => {
       if (k === "any")
@@ -310,6 +514,12 @@ function renderRules() {
         <span class="icon" onclick="removeField(${rule.id}, 'dst', '${k}')">✖</span><br>`;
     }).join("");
 
+    const errorsHtml = errors.length
+      ? `<div style="color:#b91c1c; margin-top:8px; font-size:0.8rem;">
+           ${errors.map(e => `• ${e}`).join("<br>")}
+         </div>`
+      : "";
+
     div.innerHTML = `
       <b>ID (auto):</b> ${autoId}<br><br>
 
@@ -331,7 +541,9 @@ function renderRules() {
       Description:<br>
       <textarea oninput="updateRuleMeta(${rule.id}, 'description', this.value)">${rule.description}</textarea><br>
 
-      <button onclick="removeRule(${rule.id})">Remove Rule</button>
+      <button class="btn-danger" onclick="removeRule(${rule.id})">Remove Rule</button>
+
+      ${errorsHtml}
     `;
 
     container.appendChild(div);
@@ -343,10 +555,13 @@ function renderYAML() {
   const ingress = document.getElementById("feature-ingress").value === "true";
   const monitoring = document.getElementById("feature-monitoring").value === "true";
 
+  const validRules = rules.filter(r => validateRule(r).length === 0);
+
   const yamlObj = {
     namespace: ns,
     features: { ingress, monitoring },
-    rules: rules.map(r => {
+    selectors: {},
+    rules: validRules.map(r => {
       const autoId = generateId(r);
 
       const rule = {
@@ -370,19 +585,41 @@ function renderYAML() {
 function yamlDump(obj, indent = 0) {
   const pad = "  ".repeat(indent);
   if (obj === null) return "null";
-  if (typeof obj !== "object") return obj.toString();
+
+  if (typeof obj !== "object") {
+    const s = obj.toString();
+    if (/[:\s\/]/.test(s)) {
+      return '"' + s.replace(/"/g, '\\"') + '"';
+    }
+    return s;
+  }
 
   if (Array.isArray(obj)) {
-    return obj.map(i => pad + "- " + yamlDump(i, indent+1)).join("\n");
+    if (obj.length === 0) return "[]";
+    return obj
+      .map(item => {
+        if (item === null || typeof item !== "object") {
+          return pad + "- " + yamlDump(item, indent + 1);
+        } else {
+          const body = yamlDump(item, indent + 1);
+          const [first, ...rest] = body.split("\n");
+          return [pad + "- " + first.trimStart(), ...rest].join("\n");
+        }
+      })
+      .join("\n");
   }
 
   return Object.entries(obj)
-    .map(([k,v]) =>
-      pad + k + ": " +
-      (typeof v === "object"
-        ? "\n" + yamlDump(v, indent+1)
-        : v)
-    ).join("\n");
+    .map(([k, v]) => {
+      if (v === undefined) return "";
+      if (v !== null && typeof v === "object") {
+        const nested = yamlDump(v, indent + 1);
+        return pad + k + ":\n" + nested;
+      }
+      return pad + k + ": " + yamlDump(v, indent + 1);
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 renderYAML();
